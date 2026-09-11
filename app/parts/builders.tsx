@@ -38,7 +38,7 @@ export function BuildingContext({children}: {children: ReactNode}) {
         }
       }
       state.variables = {...state.variables}
-      state.validation = data ? validator.validate(state, data.data, true) : validator.newReport()
+      state.validation = data ? validator.validate(state, data.data) : validator.newReport()
     } else if (action.type === 'settings_edit') {
       if ('value' in action) {
         state.settings[action.id as 'group_by_tax_year'] = action.value as boolean

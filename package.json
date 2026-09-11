@@ -3,11 +3,16 @@
   "version": "0.1.0",
   "scripts": {
     "dev": "next dev",
-    "build": "next build"
+    "build": "next build",
+    "update-spec": "sh scripts/update_validation_spec.sh"
   },
   "dependencies": {
     "@emotion/styled": "latest",
+    "@mui/icons-material": "latest",
     "@mui/material": "latest",
+    "@mui/material-nextjs": "latest",
+    "@mui/x-data-grid": "latest",
+    "arquero": "latest",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest"

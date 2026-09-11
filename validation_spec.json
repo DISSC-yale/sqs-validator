@@ -1,0 +1,371 @@
+{
+  "version": "1",
+  "settings": {
+    "allow_unidentified_columns": false,
+    "min_group_size": 20
+  },
+  "row_requirements": {
+    "present_identifiers": [
+      ["ssn"],
+      ["lname", "fname", "dob", "zip5"],
+      ["lname", "ssn4", "dob", "zip5"],
+      ["lname", "ssn4", "fname", "dob"],
+      ["lname", "ssn4", "fname", "yob"],
+      ["lname", "ssn4", "fname", "zip5"]
+    ],
+    "min_years": 1
+  },
+  "cell_requirements": {
+    "ssn": [
+      {"type": "pattern", "value": "^[0-9]{9}$"},
+      {"type": "match", "value": ["123456789", "987654321"], "not": true},
+      {"type": "substring", "range": [0, 3], "value": ["666", "000"], "not": true},
+      {"type": "substring", "range": [5, 4], "value": "00", "not": true}
+    ],
+    "ssn4": [
+      {"type": "pattern", "value": "^[0-9]{4}$"},
+      {"type": "match", "value": "0000", "not": true}
+    ],
+    "dob": [{"type": "date", "pattern": "^[12][90]\\d{2}-\\d{2}-\\d{2}$", "min": "1900", "max": "current"}],
+    "yob": [{"type": "date", "pattern": "^[12][90]\\d{2}$", "min": "1900", "max": "current"}],
+    "fname": [
+      {"type": "length", "min": 1, "max": 20},
+      {"type": "pattern", "value": "[^A-Za-z]", "not": true},
+      {"type": "match", "value": "MISSING", "not": true}
+    ],
+    "lname": [
+      {"type": "length", "min": 2, "max": 30},
+      {"type": "pattern", "value": "[^A-Za-z]", "not": true},
+      {"type": "match", "value": "MISSING", "not": true}
+    ],
+    "zip5": [
+      {"type": "pattern", "value": "^[0-9]{5}$"},
+      {"type": "match", "value": "99999", "not": true}
+    ],
+    "year": [{"type": "date", "pattern": "^[12][90]\\d{2}$", "min": "1900", "max": "current"}]
+  },
+  "job_spec": {
+    "variables": {
+      "identifier": {
+        "type": "identifier",
+        "description": "Variable that contains person identifying information.",
+        "fields": {
+          "name": {"type": "string", "values": "alias"},
+          "alias": {
+            "label": "Identifier Type",
+            "type": "string",
+            "required": true,
+            "values": {
+              "ssn": {"label": "Social Security Number"},
+              "ssn4": {"label": "Social Security Number, Last 4 Digits"},
+              "fname": {"label": "Given Name"},
+              "lname": {"label": "Family Name"},
+              "dob": {"label": "Date of Birth"},
+              "yob": {"label": "Year of Birth"},
+              "zip5": {"label": "Zip Code (5 Digit)"}
+            }
+          }
+        },
+        "rules": {
+          "n_min": 1,
+          "fields": {
+            "alias": [
+              {"required": "ssn"},
+              {"required": "lname", "optional": ["fname", "ssn4", "dob", "yob", "zip5"], "n_min": 3}
+            ]
+          }
+        }
+      },
+      "group": {
+        "type": "group",
+        "description": "Variable containing group levels.",
+        "fields": {
+          "name": {"type": "string", "prefix": "gv_"},
+          "rollup": {
+            "label": "Rollup",
+            "type": "boolean",
+            "description": "Whether to include totals across this group.",
+            "default": [{"value": true}]
+          },
+          "priority": {
+            "label": "Priority",
+            "type": "number",
+            "description": "Defines grouping order; groups with higher priority are applied earlier, and so are less likely to be dropped due to insufficient cell size."
+          }
+        },
+        "rules": [{"n_min": 1, "n_max": 5}]
+      },
+      "year": {
+        "type": "year",
+        "description": "Variable containing a target tax year.",
+        "fields": {"name": {"type": "string", "prefix": "tty"}},
+        "rules": {"n_min": 1}
+      }
+    },
+    "settings": {
+      "group_by_tax_year": {"label": "Group by Tax Year", "type": "boolean"},
+      "group_by_matching_strategy": {"label": "Group by Matching Strategy", "type": "boolean"},
+      "reference_tax_year": {
+        "label": "Reference Tax Year",
+        "type": "year",
+        "advanced": true,
+        "forms": [
+          {"type": "number"},
+          {"type": "array"},
+          {
+            "type": "object",
+            "structure": {"start": {"type": "number"}, "end": {"type": "number"}}
+          }
+        ],
+        "min": "1990",
+        "max": "current",
+        "description": "Reference years limit the tax records used to match client records to TINs. It can increase the match rate if data were generated during specific years."
+      },
+      "inflation_adjustment_year": {
+        "label": "Inflation Adjustment Year",
+        "type": "year",
+        "advanced": true,
+        "min": "1990",
+        "max": "current",
+        "description": "If set, monetary values are adjusted to this year using CPI-U."
+      },
+      "matching_strategies": {
+        "label": "Matching Strategy",
+        "type": "string",
+        "advanced": true,
+        "multi": true,
+        "values": {
+          "ssn_exact": {
+            "label": "SSN Exact",
+            "description": "Match records using Social Security Number with exact comparisons on either date-of-birth or the first four characters of the last name. Highest precision; requires a valid SSN in the input file."
+          },
+          "ssn_fuzzy": {
+            "label": "SSN Fuzzy",
+            "description": "Match records using SSN with additional tolerances for transcription errors such as transposed digits. Increases recall at a small cost to precision."
+          },
+          "no_ssn_exact": {
+            "label": "No-SSN Exact",
+            "description": "Match records that lack an SSN using name, date of birth, and other identifiers with exact comparison."
+          },
+          "no_ssn_fuzzy": {
+            "label": "No-SSN Fuzzy",
+            "description": "Match records that lack an SSN using name and other identifiers with approximate (fuzzy) matching to handle spelling variation."
+          },
+          "ssn_only": {
+            "label": "SSN Only",
+            "exclusive": true,
+            "description": "Match solely on SSN without requiring any other identifying fields. Useful for when Social Security Numbers have been independently verified. Cannot be combined with other strategies."
+          }
+        },
+        "default": [{"value": ["ssn_exact", "ssn_fuzzy", "no_ssn_exact"]}]
+      }
+    },
+    "outputs": {
+      "matchable": {
+        "type": "boolean",
+        "label": "Matchable individuals",
+        "description": "Count of individuals in the input file that were successfully matched against tax records, regardless of which forms they filed.",
+        "disable": true,
+        "default": [{"value": true}]
+      },
+      "filed_1040": {
+        "type": "boolean",
+        "label": "Filed Form 1040",
+        "description": "Count of matched individiuals who filed Form 1040.",
+        "suboptions": {
+          "wages_1040": {
+            "label": "Total wages",
+            "description": "Non-zero amounts in Line 1z, Form 1040. Total wages, salaries, tips, and other employee compensation received during the year.",
+            "type": "string",
+            "multi": true,
+            "values": {
+              "count": {"label": "Count", "required": true},
+              "median": {"label": "Median"},
+              "mean": {"label": "Mean"},
+              "variance": {"label": "Variance"}
+            }
+          },
+          "agi_1040": {
+            "label": "Adjusted Gross Income",
+            "description": "Non-zero amounts in Line 11, Form 1040. Total income after above-the-line deductions (e.g. IRA contributions, student loan interest) but before the standard or itemized deductions.",
+            "type": "string",
+            "multi": true,
+            "values": {
+              "count": {"label": "Count", "required": true},
+              "median": {"label": "Median"},
+              "mean": {"label": "Mean"},
+              "variance": {"label": "Variance"}
+            }
+          },
+          "ctc_1040": {
+            "label": "Child Tax Credit",
+            "description": "The claimed Child Tax Credit (CTC) amount in Line 19, Form 1040.",
+            "type": "string",
+            "multi": true,
+            "values": {
+              "count": {"label": "Count", "required": true},
+              "median": {"label": "Median"},
+              "mean": {"label": "Mean"},
+              "variance": {"label": "Variance"}
+            }
+          },
+          "eic_1040": {
+            "label": "Earned Income Credit",
+            "description": "The claimed Earned Income Credit (often EITC) amount in Line 27, Form 1040.",
+            "type": "string",
+            "multi": true,
+            "values": {
+              "count": {"label": "Count", "required": true},
+              "median": {"label": "Median"},
+              "mean": {"label": "Mean"},
+              "variance": {"label": "Variance"}
+            }
+          },
+          "schedule_c_1040": {
+            "label": "Schedule C",
+            "description": "Count of individuals who filed Schedule C with their Form 1040.",
+            "type": "boolean"
+          },
+          "filing_status_1040": {
+            "label": "Married Filing Jointly",
+            "description": "Count of individuals whose filing status was \"married filing jointly\" on their Form 1040.",
+            "type": "boolean"
+          }
+        }
+      },
+      "filed_w2_or_1099nec": {
+        "type": "boolean",
+        "label": "Filed Form W-2 or 1099-NEC",
+        "description": "Count of individuals who filed Form W-2 or 1099-NEC.",
+        "suboptions": {
+          "total_income_w2_and_1099nec": {
+            "label": "Total Information Return Income",
+            "description": "Total income from all Forms W-2 and 1099-NEC (Boxes 1) combined.",
+            "type": "string",
+            "multi": true,
+            "values": {
+              "count": {"label": "Count", "required": true},
+              "median": {"label": "Median"},
+              "mean": {"label": "Mean"},
+              "variance": {"label": "Variance"}
+            }
+          },
+          "total_income_w2": {
+            "label": "Total Income Forms W-2",
+            "description": "Total income from all Forms W-2, Box 1.",
+            "type": "string",
+            "multi": true,
+            "values": {
+              "count": {"label": "Count", "required": true},
+              "median": {"label": "Median"},
+              "mean": {"label": "Mean"},
+              "variance": {"label": "Variance"}
+            }
+          },
+          "number_of_w2": {
+            "label": "Number of Forms W-2",
+            "description": "Count of the number of Forms W-2 per individual among those that have them.",
+            "type": "string",
+            "multi": true,
+            "values": {
+              "count": {"label": "Count", "required": true},
+              "median": {"label": "Median"},
+              "mean": {"label": "Mean"},
+              "variance": {"label": "Variance"}
+            }
+          },
+          "total_income_1099nec": {
+            "label": "Total Income Forms 1099-NEC",
+            "description": "Total income from all Forms 1099-NEC, Box 1.",
+            "type": "string",
+            "multi": true,
+            "values": {
+              "count": {"label": "Count", "required": true},
+              "median": {"label": "Median"},
+              "mean": {"label": "Mean"},
+              "variance": {"label": "Variance"}
+            }
+          },
+          "number_of_1099nec": {
+            "label": "Number of Forms 1099-NEC",
+            "description": "Count of the number of Forms 1099-NEC per individual among those that have them.",
+            "type": "string",
+            "multi": true,
+            "values": {
+              "count": {"label": "Count", "required": true},
+              "median": {"label": "Median"},
+              "mean": {"label": "Mean"},
+              "variance": {"label": "Variance"}
+            }
+          },
+          "jobs_in_state": {
+            "label": "Jobs in State",
+            "type": "boolean",
+            "description": "Counts of matched individuals whose W-2 jobs were all in the state of interest, at least one was in the state of interest, or all were outside the state of interest.",
+            "suboptions": {
+              "state_of_interest": {
+                "label": "State of Interest",
+                "description": "The state these counts are measured against.",
+                "type": "string",
+                "required": true,
+                "values": {
+                  "AL": {"label": "Alabama"},
+                  "AK": {"label": "Alaska"},
+                  "AZ": {"label": "Arizona"},
+                  "AR": {"label": "Arkansas"},
+                  "CA": {"label": "California"},
+                  "CO": {"label": "Colorado"},
+                  "CT": {"label": "Connecticut"},
+                  "DE": {"label": "Delaware"},
+                  "DC": {"label": "District of Columbia"},
+                  "FL": {"label": "Florida"},
+                  "GA": {"label": "Georgia"},
+                  "HI": {"label": "Hawaii"},
+                  "ID": {"label": "Idaho"},
+                  "IL": {"label": "Illinois"},
+                  "IN": {"label": "Indiana"},
+                  "IA": {"label": "Iowa"},
+                  "KS": {"label": "Kansas"},
+                  "KY": {"label": "Kentucky"},
+                  "LA": {"label": "Louisiana"},
+                  "ME": {"label": "Maine"},
+                  "MD": {"label": "Maryland"},
+                  "MA": {"label": "Massachusetts"},
+                  "MI": {"label": "Michigan"},
+                  "MN": {"label": "Minnesota"},
+                  "MS": {"label": "Mississippi"},
+                  "MO": {"label": "Missouri"},
+                  "MT": {"label": "Montana"},
+                  "NE": {"label": "Nebraska"},
+                  "NV": {"label": "Nevada"},
+                  "NH": {"label": "New Hampshire"},
+                  "NJ": {"label": "New Jersey"},
+                  "NM": {"label": "New Mexico"},
+                  "NY": {"label": "New York"},
+                  "NC": {"label": "North Carolina"},
+                  "ND": {"label": "North Dakota"},
+                  "OH": {"label": "Ohio"},
+                  "OK": {"label": "Oklahoma"},
+                  "OR": {"label": "Oregon"},
+                  "PA": {"label": "Pennsylvania"},
+                  "RI": {"label": "Rhode Island"},
+                  "SC": {"label": "South Carolina"},
+                  "SD": {"label": "South Dakota"},
+                  "TN": {"label": "Tennessee"},
+                  "TX": {"label": "Texas"},
+                  "UT": {"label": "Utah"},
+                  "VT": {"label": "Vermont"},
+                  "VA": {"label": "Virginia"},
+                  "WA": {"label": "Washington"},
+                  "WV": {"label": "West Virginia"},
+                  "WI": {"label": "Wisconsin"},
+                  "WY": {"label": "Wyoming"}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

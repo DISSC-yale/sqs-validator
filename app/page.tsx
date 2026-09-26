@@ -22,6 +22,7 @@ export default function Home() {
             e.dataTransfer.dropEffect = 'none'
           }
         }}
+        component="main"
       >
         <AppBar component="nav">
           <Toolbar variant="dense" sx={{justifyContent: 'space-between'}}>

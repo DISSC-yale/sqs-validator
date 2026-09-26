@@ -1,6 +1,8 @@
-import type {ColumnTable} from 'arquero'
+import {table, type ColumnTable} from 'arquero'
 import type {
   BaseEntry,
+  CategoricalRule,
+  CategoricalValues,
   CellRuleChecks,
   CellRuleSpec,
   DefaultConditions,
@@ -8,31 +10,37 @@ import type {
   ErrorIndex,
   JobSpec,
   RenderedVariableSpec,
+  RowCheck,
   RowRuleSpec,
   Settings,
   StringEntry,
   ValidationReport,
   ValidationSpec,
   VariableRuleChecks,
+  VariableRules,
   VariableSpec,
   VariableType,
   VariableTypes,
-  VariableTypeSummary,
+  VariableTypeSummaries,
 } from './types'
 
 export default class Validator {
   spec: ValidationSpec
+  common_values: {[key: string]: CategoricalValues}
   rendered_variables: {[key: string]: RenderedVariableSpec}
   variable_checks: VariableRuleChecks
+  matching_strategies: Map<string, (row: {[key: string]: string}, map: Map<string, string>) => string>
   cell_checks: CellRuleChecks
   variable_types: string[]
   defaults: {settings: Settings; outputs: {[key: string]: {value: boolean | string | string[]}}}
-  row_check: (variableMap: {[key: string]: string}, row: {[key: string]: string}) => string
+  row_check: RowCheck
 
   constructor(spec: ValidationSpec) {
     this.spec = spec
+    this.common_values = spec.job_spec.common_values || {}
     this.rendered_variables = {}
     this.variable_checks = {}
+    this.matching_strategies = new Map()
     this.cell_checks = {}
     this.variable_types = []
     this.defaults = {
@@ -45,6 +53,13 @@ export default class Validator {
       this.variable_types.push(type)
       this.rendered_variables[type] = renderVariable(variable)
       this.variable_checks[type] = renderVariableRules(variable)
+    })
+    const strategies = spec.job_spec.settings.matching_strategies as StringEntry
+    const strategy_options = strategies.values as CategoricalValues
+    Object.keys(strategy_options).forEach(id => {
+      if (strategy_options[id].rules) {
+        this.matching_strategies.set(id, renderStrategyRules(strategy_options[id].rules))
+      }
     })
     Object.keys(spec.cell_requirements).forEach(name => {
       this.cell_checks[name] = renderCellRules(spec.cell_requirements[name])
@@ -91,14 +106,33 @@ export default class Validator {
     })
     return newVariables
   }
+  fillStructure(spec: {[key: string]: BaseEntry}, output: {[key: string]: any}) {
+    Object.keys(spec).forEach(entry => {
+      const entrySpec = spec[entry]
+      if (!(entry in output)) {
+        if (
+          entrySpec.type === 'string' &&
+          entrySpec.values &&
+          'string' === typeof entrySpec.values &&
+          entrySpec.values in this.common_values
+        ) {
+          entrySpec.values = this.common_values[entrySpec.values]
+        }
+        output[entry] = typeMap(entry, entrySpec)
+      }
+      if (entrySpec.suboptions) {
+        this.fillStructure(entrySpec.suboptions, output)
+      }
+    })
+  }
   fillDefaults(job: any, entry: 'settings' | 'outputs') {
     const output = job[entry] || {}
     const spec = this.spec.job_spec[entry]
-    fillStructure(spec, output)
+    this.fillStructure(spec, output)
     return output
   }
   checkVariables(variables: VariableTypes) {
-    const summary: VariableTypeSummary = {}
+    const summary: VariableTypeSummaries = {}
     const resses: string[] = []
     const specs = this.spec.job_spec.variables
     Object.values(variables).forEach(variable => {
@@ -165,6 +199,22 @@ export default class Validator {
     })
     return errors
   }
+  getMatchingStrategies(variables: VariableTypes, data: ColumnTable) {
+    const identifier_map: Map<string, string> = new Map()
+    const strategy_cols: {[key: string]: string[]} = {}
+    Object.values(variables).forEach(v => {
+      if (v.type === 'identifier') {
+        identifier_map.set(v.alias, v.name)
+      }
+    })
+    this.matching_strategies.forEach((_, strategy) => (strategy_cols[strategy] = []))
+    data.objects().map(r => {
+      this.matching_strategies.forEach((check, strategy) => {
+        strategy_cols[strategy].push(check(r as {[key: string]: string}, identifier_map) ? '' : strategy)
+      })
+    })
+    return strategy_cols
+  }
   countGroups(variables: VariableTypes, data: ColumnTable, settings: Settings) {
     const groupVars: string[] = []
     Object.values(variables).forEach(variable => {
@@ -172,6 +222,19 @@ export default class Validator {
         groupVars.push(variable.name)
       }
     })
+    if (settings.group_by_matching_strategy) {
+      const strategies = this.getMatchingStrategies(variables, data)
+      const counts = Object.keys(strategies).map(strategy => {
+        const s = table({matching_strategy: strategies[strategy]})
+        return data
+          .assign(s)
+          .filter(`d.matching_strategy !== ''`)
+          .groupby(['matching_strategy', ...groupVars])
+          .count()
+      })
+      const first = counts.slice(0, 1)[0]
+      return first.concat(counts)
+    }
     return data.groupby(groupVars).count()
   }
   structureVariable(name: string, type?: string, existing?: VariableType): VariableType {
@@ -274,7 +337,7 @@ function renderVariable({type, fields}: VariableSpec): RenderedVariableSpec {
     if (entry === 'name' && activeSpec.type === 'string') {
       if (activeSpec.values) {
         const values = activeSpec.values
-        match = (value: string) => value in values
+        match = (value: string) => value in (values as CategoricalValues)
       } else if (activeSpec.prefix) {
         const prefix = activeSpec.prefix
         match = (value: string) => value.startsWith(prefix)
@@ -299,61 +362,76 @@ function printStringList(l: string | string[]) {
   return Array.isArray(l) ? l.join(', ') : l
 }
 
-function renderVariableRules({type, rules}: VariableSpec) {
-  const extract = (summary: VariableTypeSummary) => (type in summary ? summary[type] : {count: 0, field_values: {}})
+function checkSetRules(name: string, rules: CategoricalRule[], set: Set<string>) {
+  const resses = rules.map(r => {
+    const res = {require: '', optional: '', exclude: ''}
+    if (r.required) {
+      const pass = Array.isArray(r.required) ? r.required.every(v => set.has(v)) : set.has(r.required)
+      res.require = pass ? '' : `requires ${printStringList(r.required)}`
+    }
+    if (r.optional) {
+      let count = 0
+      if (Array.isArray(r.optional)) {
+        r.optional.forEach(v => {
+          count += +set.has(v)
+        })
+      } else {
+        count += +set.has(r.optional)
+      }
+      if (r.n_min && count < r.n_min) {
+        res.optional = `missing ${r.n_min - count} optional variables (${printStringList(r.optional)})`
+      } else if (r.n_max && count > r.n_max) {
+        res.optional = `${count - r.n_max} too many optional variables (${printStringList(r.optional)})`
+      }
+    }
+    if (r.exclude) {
+      let any = false
+      if (Array.isArray(r.exclude)) {
+        for (let i = r.exclude.length; i--; ) {
+          if (set.has(r.exclude[i])) {
+            any = true
+            break
+          }
+        }
+      } else {
+        any = set.has(r.exclude)
+      }
+      res.exclude = any ? `variables are not allowed: ${printStringList(r.exclude)}` : ''
+    }
+    return res.require || res.exclude || res.optional
+  })
+  return resses.length && !resses.includes('') ? name + ': ' + resses.join(' or ') : ''
+}
+
+function renderStrategyRules(rules: CategoricalRule[]) {
+  return (row: {[key: string]: string}, map: Map<string, string>) => {
+    const l: Set<string> = new Set()
+    map.forEach((name, alias) => {
+      if (row[name]) l.add(alias)
+    })
+    return checkSetRules('', rules, l)
+  }
+}
+
+function renderVariableRules({type, rules}: {type: string; rules: VariableRules}) {
+  const extract = (summary: VariableTypeSummaries) => (type in summary ? summary[type] : {count: 0, field_values: {}})
   const checks = [
-    (summary: VariableTypeSummary) => (extract(summary).count < (rules.n_min || 1) ? `too few ${type} variables` : ''),
+    (summary: VariableTypeSummaries) =>
+      extract(summary).count < (rules.n_min || 1) ? `too few ${type} variables` : '',
   ]
   if ('n_max' in rules) {
-    checks.push((summary: VariableTypeSummary) =>
+    checks.push((summary: VariableTypeSummaries) =>
       rules.n_max && extract(summary).count > rules.n_max ? `too many ${type} variables` : '',
     )
   }
   rules.fields &&
     Object.keys(rules.fields).forEach(field => {
       const rs = rules.fields[field]
-      checks.push((summary: VariableTypeSummary) => {
+      checks.push((summary: VariableTypeSummaries) => {
         const s = extract(summary)
         const l = s.field_values && s.field_values[field]
         if (!l) return ''
-        const resses = rs.map(r => {
-          const res = {require: '', optional: '', exclude: ''}
-          if (r.required) {
-            const pass = Array.isArray(r.required) ? r.required.every(v => l.has(v)) : l.has(r.required)
-            res.require = pass ? '' : `requires ${printStringList(r.required)}`
-          }
-          if (r.optional) {
-            let count = 0
-            if (Array.isArray(r.optional)) {
-              r.optional.forEach(v => {
-                count += +l.has(v)
-              })
-            } else {
-              count += +l.has(r.optional)
-            }
-            if (r.n_min && count < r.n_min) {
-              res.optional = `missing ${r.n_min - count} optional variables (${printStringList(r.optional)})`
-            } else if (r.n_max && count > r.n_max) {
-              res.optional = `${count - r.n_max} too many optional variables (${printStringList(r.optional)})`
-            }
-          }
-          if (r.exclude) {
-            let any = false
-            if (Array.isArray(r.exclude)) {
-              for (let i = r.exclude.length; i--; ) {
-                if (l.has(r.exclude[i])) {
-                  any = true
-                  break
-                }
-              }
-            } else {
-              any = l.has(r.exclude)
-            }
-            res.exclude = any ? `variables are not allowed: ${printStringList(r.exclude)}` : ''
-          }
-          return res.require || res.exclude || res.optional
-        })
-        return resses.length && !resses.includes('') ? field + ': ' + resses.join(' or ') : ''
+        return checkSetRules(field, rs, l)
       })
     })
 
@@ -504,16 +582,4 @@ function renderRowRules(rules: RowRuleSpec) {
       return `invalid combination of identifiers: ${[...identifiers].join(', ')}`
     return ''
   }
-}
-
-function fillStructure(spec: {[key: string]: BaseEntry}, output: {[key: string]: any}) {
-  Object.keys(spec).forEach(entry => {
-    const entrySpec = spec[entry]
-    if (!(entry in output)) {
-      output[entry] = typeMap(entry, entrySpec)
-    }
-    if (entrySpec.suboptions) {
-      fillStructure(entrySpec.suboptions, output)
-    }
-  })
 }

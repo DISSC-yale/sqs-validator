@@ -45,6 +45,16 @@
     "year": [{"type": "date", "pattern": "^[12][90]\\d{2}$", "min": "1900", "max": "current"}]
   },
   "job_spec": {
+    "common_values": {
+      "summary_statistics": {
+        "count": {"label": "Count", "required": true},
+        "first_quartile": {"label": "1st Quartile"},
+        "median": {"label": "Median"},
+        "mean": {"label": "Mean"},
+        "third_quartile": {"label": "3rd Quartile"},
+        "variance": {"label": "Variance"}
+      }
+    },
     "variables": {
       "identifier": {
         "type": "identifier",
@@ -103,7 +113,6 @@
       }
     },
     "settings": {
-      "group_by_tax_year": {"label": "Group by Tax Year", "type": "boolean"},
       "group_by_matching_strategy": {"label": "Group by Matching Strategy", "type": "boolean"},
       "reference_tax_year": {
         "label": "Reference Tax Year",
@@ -137,24 +146,29 @@
         "values": {
           "ssn_exact": {
             "label": "SSN Exact",
-            "description": "Match records using Social Security Number with exact comparisons on either date-of-birth or the first four characters of the last name. Highest precision; requires a valid SSN in the input file."
+            "description": "Match records using Social Security Number with exact comparisons on either date-of-birth or the first four characters of the last name. Highest precision; requires a valid SSN in the input file.",
+            "rules": [{"required": "ssn"}]
           },
           "ssn_fuzzy": {
             "label": "SSN Fuzzy",
-            "description": "Match records using SSN with additional tolerances for transcription errors such as transposed digits. Increases recall at a small cost to precision."
+            "description": "Match records using SSN with additional tolerances for transcription errors such as transposed digits. Increases recall at a small cost to precision.",
+            "rules": [{"required": "ssn"}]
           },
           "no_ssn_exact": {
             "label": "No-SSN Exact",
-            "description": "Match records that lack an SSN using name, date of birth, and other identifiers with exact comparison."
+            "description": "Match records that lack an SSN using name, date of birth, and other identifiers with exact comparison.",
+            "rules": [{"required": "lname", "optional": ["fname", "ssn4", "dob", "yob", "zip5"], "n_min": 3}]
           },
           "no_ssn_fuzzy": {
             "label": "No-SSN Fuzzy",
-            "description": "Match records that lack an SSN using name and other identifiers with approximate (fuzzy) matching to handle spelling variation."
+            "description": "Match records that lack an SSN using name and other identifiers with approximate (fuzzy) matching to handle spelling variation.",
+            "rules": [{"required": "lname", "optional": ["fname", "ssn4", "dob", "yob", "zip5"], "n_min": 3}]
           },
           "ssn_only": {
             "label": "SSN Only",
             "exclusive": true,
-            "description": "Match solely on SSN without requiring any other identifying fields. Useful for when Social Security Numbers have been independently verified. Cannot be combined with other strategies."
+            "description": "Match solely on SSN without requiring any other identifying fields. Useful for when Social Security Numbers have been independently verified. Cannot be combined with other strategies.",
+            "rules": [{"required": "ssn"}]
           }
         },
         "default": [{"value": ["ssn_exact", "ssn_fuzzy", "no_ssn_exact"]}]
@@ -178,48 +192,28 @@
             "description": "Non-zero amounts in Line 1z, Form 1040. Total wages, salaries, tips, and other employee compensation received during the year.",
             "type": "string",
             "multi": true,
-            "values": {
-              "count": {"label": "Count", "required": true},
-              "median": {"label": "Median"},
-              "mean": {"label": "Mean"},
-              "variance": {"label": "Variance"}
-            }
+            "values": "summary_statistics"
           },
           "agi_1040": {
             "label": "Adjusted Gross Income",
             "description": "Non-zero amounts in Line 11, Form 1040. Total income after above-the-line deductions (e.g. IRA contributions, student loan interest) but before the standard or itemized deductions.",
             "type": "string",
             "multi": true,
-            "values": {
-              "count": {"label": "Count", "required": true},
-              "median": {"label": "Median"},
-              "mean": {"label": "Mean"},
-              "variance": {"label": "Variance"}
-            }
+            "values": "summary_statistics"
           },
           "ctc_1040": {
             "label": "Child Tax Credit",
             "description": "The claimed Child Tax Credit (CTC) amount in Line 19, Form 1040.",
             "type": "string",
             "multi": true,
-            "values": {
-              "count": {"label": "Count", "required": true},
-              "median": {"label": "Median"},
-              "mean": {"label": "Mean"},
-              "variance": {"label": "Variance"}
-            }
+            "values": "summary_statistics"
           },
           "eic_1040": {
             "label": "Earned Income Credit",
             "description": "The claimed Earned Income Credit (often EITC) amount in Line 27, Form 1040.",
             "type": "string",
             "multi": true,
-            "values": {
-              "count": {"label": "Count", "required": true},
-              "median": {"label": "Median"},
-              "mean": {"label": "Mean"},
-              "variance": {"label": "Variance"}
-            }
+            "values": "summary_statistics"
           },
           "schedule_c_1040": {
             "label": "Schedule C",
@@ -243,60 +237,35 @@
             "description": "Total income from all Forms W-2 and 1099-NEC (Boxes 1) combined.",
             "type": "string",
             "multi": true,
-            "values": {
-              "count": {"label": "Count", "required": true},
-              "median": {"label": "Median"},
-              "mean": {"label": "Mean"},
-              "variance": {"label": "Variance"}
-            }
+            "values": "summary_statistics"
           },
           "total_income_w2": {
             "label": "Total Income Forms W-2",
             "description": "Total income from all Forms W-2, Box 1.",
             "type": "string",
             "multi": true,
-            "values": {
-              "count": {"label": "Count", "required": true},
-              "median": {"label": "Median"},
-              "mean": {"label": "Mean"},
-              "variance": {"label": "Variance"}
-            }
+            "values": "summary_statistics"
           },
           "number_of_w2": {
             "label": "Number of Forms W-2",
             "description": "Count of the number of Forms W-2 per individual among those that have them.",
             "type": "string",
             "multi": true,
-            "values": {
-              "count": {"label": "Count", "required": true},
-              "median": {"label": "Median"},
-              "mean": {"label": "Mean"},
-              "variance": {"label": "Variance"}
-            }
+            "values": "summary_statistics"
           },
           "total_income_1099nec": {
             "label": "Total Income Forms 1099-NEC",
             "description": "Total income from all Forms 1099-NEC, Box 1.",
             "type": "string",
             "multi": true,
-            "values": {
-              "count": {"label": "Count", "required": true},
-              "median": {"label": "Median"},
-              "mean": {"label": "Mean"},
-              "variance": {"label": "Variance"}
-            }
+            "values": "summary_statistics"
           },
           "number_of_1099nec": {
             "label": "Number of Forms 1099-NEC",
             "description": "Count of the number of Forms 1099-NEC per individual among those that have them.",
             "type": "string",
             "multi": true,
-            "values": {
-              "count": {"label": "Count", "required": true},
-              "median": {"label": "Median"},
-              "mean": {"label": "Mean"},
-              "variance": {"label": "Variance"}
-            }
+            "values": "summary_statistics"
           },
           "jobs_in_state": {
             "label": "Jobs in State",

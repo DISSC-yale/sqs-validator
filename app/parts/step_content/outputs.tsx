@@ -30,8 +30,8 @@ export default function SelectOutputs() {
         const advanced: ReactElement[] = []
         Object.keys(options).forEach((id, index) => {
           const spec = options[id]
-          const value = settings[id as 'group_by_tax_year'] || ''
-          const parentSet = !!parent && !settings[parent as 'group_by_tax_year']
+          const value = settings[id as 'group_by_matching_strategy'] || ''
+          const parentSet = !!parent && !settings[parent as 'group_by_matching_strategy']
           const outputSet = spec.advanced ? advanced : standard
           const control = BaseTypeUI(
             `${id}-${index}`,
@@ -40,11 +40,12 @@ export default function SelectOutputs() {
             (e: ChangeEvent | SelectChangeEvent, newValue?: string | string[] | ReactElement) => {
               const value =
                 'string' === typeof newValue || Array.isArray(newValue) ? newValue
-                : spec.type === 'boolean' ? !settings[id as 'group_by_tax_year']
+                : spec.type === 'boolean' ? !settings[id as 'group_by_matching_strategy']
                 : (e.target as HTMLInputElement).value || ''
               if (spec.type === 'string' && spec.values && Array.isArray(value) && value.length) {
                 Object.keys(spec.values).forEach(k => {
-                  if (spec.values && spec.values[k].required && !value.includes(k)) value.splice(0, 0, k)
+                  if ('object' === typeof spec.values && spec.values[k].required && !value.includes(k))
+                    value.splice(0, 0, k)
                 })
               }
               editJob({

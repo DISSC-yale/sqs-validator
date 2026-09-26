@@ -1,4 +1,4 @@
-import type {BaseEntry} from '@/app/types'
+import type {BaseEntry, CategoricalValues} from '@/app/types'
 import {
   Autocomplete,
   Box,
@@ -67,7 +67,7 @@ export function BaseTypeUI(
       ></TextField>
     )
   } else if (type === 'string') {
-    const values = spec.values || {}
+    const values = (spec.values || {}) as CategoricalValues
     const requiredOptions: {[key: string]: boolean} = {}
     Object.keys(values).forEach(k => {
       if (values[k].required) requiredOptions[k] = true
@@ -93,6 +93,7 @@ export function BaseTypeUI(
               const {key, ...itemProps} = getItemProps({index})
               return (
                 <Chip
+                  size="small"
                   key={key}
                   label={values[option].label}
                   {...itemProps}

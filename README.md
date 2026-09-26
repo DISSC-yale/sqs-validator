@@ -13,12 +13,12 @@ Once your data passes all validation checks, we will review your output, which i
 This is an initial version of the validation spec and graphical interface.
 
 The main component not yet built is the Python validator.
-This will be a Python package build around the same validation spec, and will have the added ability to check that two job specs line up.
+This will be a Python package built around the same validation spec, and will have the added ability to check that two job specs line up.
 
 There are also several things not yet implemented in the graphical interface:
 
-- Grouping by tax year or matching strategy
 - Additional forms of reference year input handling
 - Loose privacy budget display (to show increasing noise as outputs are selected)
 - Data editor
 - Results preview
+- Job spec validation

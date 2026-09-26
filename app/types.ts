@@ -9,12 +9,17 @@ export type CategoricalRule = {
   n_min?: number
   n_max?: number
 }
+export type CategoricalValues = {
+  [key: string]: {label: string; description?: string; required?: boolean; rules?: CategoricalRule[]}
+}
 
 export type DefaultConditions<T> = {starts_with?: string; ends_with?: string; includes?: string; value: T}[]
 
+export type RowCheck = (variableMap: {[key: string]: string}, row: {[key: string]: string}) => string
+
 export type StringEntry = {
   type: 'string'
-  values?: {[key: string]: {label: string; description?: string; required?: boolean}}
+  values?: string | CategoricalValues
   pattern?: string
   prefix?: string
   multi?: boolean
@@ -85,6 +90,7 @@ export type ValidationSpec = {
   }
   row_requirements: RowRuleSpec
   job_spec: {
+    common_values: {[key: string]: CategoricalValues}
     variables: {[key: string]: VariableSpec}
     outputs: {[key: string]: BaseEntry}
     settings: {[key: string]: BaseEntry}
@@ -138,7 +144,6 @@ export type VariableTypes = {[key: string]: VariableType}
 export type Settings = {
   reference_tax_year?: number | number[] | {start?: number; end?: number}
   inflation_adjustment_year?: number
-  group_by_tax_year?: boolean
   group_by_matching_strategy?: boolean
 }
 
@@ -150,10 +155,11 @@ export type JobSpec = {
   groups?: {[key: string]: string | number; count: number}[]
 }
 
-export type VariableTypeSummary = {[key: string]: {count: number; field_values: {[key: string]: Set<string>}}}
+export type VariableTypeSummary = {count: number; field_values: {[key: string]: Set<string>}}
+export type VariableTypeSummaries = {[key: string]: VariableTypeSummary}
 
 export type VariableRuleChecks = {
-  [key: string]: ((summary: VariableTypeSummary) => string)[]
+  [key: string]: ((summary: VariableTypeSummaries) => string)[]
 }
 export type CellRuleChecks = {
   [key: string]: ((value: string) => string)[]

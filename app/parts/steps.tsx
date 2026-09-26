@@ -29,10 +29,10 @@ export default function Steps() {
   const [currentStep, setCurrentStep] = useState('define')
   const tabs = useMemo(() => {
     const stepFailed = {
-      define: !job.validation || !!job.validation.errors.variables.length,
-      values: !job.validation || !!job.validation.errors.values.length,
-      rows: !job.validation || !!job.validation.errors.rows.length,
-      groups: !job.validation || !!job.validation.errors.groups.length,
+      define: !data || !job.validation || !!job.validation.errors.variables.length,
+      values: !data || !job.validation || !!job.validation.errors.values.length,
+      rows: !data || !job.validation || !!job.validation.errors.rows.length,
+      groups: !data || !job.validation || !!job.validation.errors.groups.length,
     }
     const tabProps = (label: string, value: keyof typeof stepFailed | 'outputs') => {
       return {

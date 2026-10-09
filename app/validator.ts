@@ -264,6 +264,31 @@ export default class Validator {
     selectJob.outputs = clearDefaults(job.outputs, this.defaults.outputs, this.spec.job_spec.outputs)
     return JSON.stringify(selectJob, null, 2)
   }
+  jobCost(job: JobSpec) {
+    return optionsCost(this.spec.job_spec.outputs, job.outputs)
+  }
+}
+
+function optionsCost(options: {[key: string]: BaseEntry}, selected: {[key: string]: string | boolean | string[]}) {
+  let cost = 0
+  Object.keys(options).forEach(output => {
+    const outputSpec = options[output]
+    const jobValue = selected[output]
+    const optionSelected = output in selected && (outputSpec.type !== 'boolean' || jobValue)
+    if (optionSelected) {
+      if (outputSpec.cost && optionSelected) cost += outputSpec.cost
+      if (outputSpec.type === 'string' && 'object' === typeof outputSpec.values && Array.isArray(jobValue)) {
+        const values = outputSpec.values
+        jobValue.forEach(value => {
+          if (value in values && values[value].cost) cost += values[value].cost
+        })
+      }
+      if (outputSpec.suboptions) {
+        cost += optionsCost(outputSpec.suboptions, selected)
+      }
+    }
+  })
+  return cost
 }
 
 function clearDefaults(

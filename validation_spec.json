@@ -47,12 +47,12 @@
   "job_spec": {
     "common_values": {
       "summary_statistics": {
-        "count": {"label": "Count", "required": true},
-        "first_quartile": {"label": "1st Quartile"},
+        "count": {"label": "Count", "required": true, "cost": 1},
+        "first_quartile": {"label": "1st Quartile", "cost": 1},
         "median": {"label": "Median"},
-        "mean": {"label": "Mean"},
-        "third_quartile": {"label": "3rd Quartile"},
-        "variance": {"label": "Variance"}
+        "mean": {"label": "Mean", "cost": 1},
+        "third_quartile": {"label": "3rd Quartile", "cost": 1},
+        "variance": {"label": "Variance", "requires": "mean", "cost": 1}
       }
     },
     "variables": {
@@ -180,12 +180,14 @@
         "label": "Matchable individuals",
         "description": "Count of individuals in the input file that were successfully matched against tax records, regardless of which forms they filed.",
         "disable": true,
+        "cost": 1,
         "default": [{"value": true}]
       },
       "filed_1040": {
         "type": "boolean",
         "label": "Filed Form 1040",
         "description": "Count of matched individiuals who filed Form 1040.",
+        "cost": 1,
         "suboptions": {
           "wages_1040": {
             "label": "Total wages",
@@ -218,12 +220,14 @@
           "schedule_c_1040": {
             "label": "Schedule C",
             "description": "Count of individuals who filed Schedule C with their Form 1040.",
-            "type": "boolean"
+            "type": "boolean",
+            "cost": 1
           },
           "filing_status_1040": {
             "label": "Married Filing Jointly",
             "description": "Count of individuals whose filing status was \"married filing jointly\" on their Form 1040.",
-            "type": "boolean"
+            "type": "boolean",
+            "cost": 1
           }
         }
       },
@@ -231,6 +235,7 @@
         "type": "boolean",
         "label": "Filed Form W-2 or 1099-NEC",
         "description": "Count of individuals who filed Form W-2 or 1099-NEC.",
+        "cost": 1,
         "suboptions": {
           "total_income_w2_and_1099nec": {
             "label": "Total Information Return Income",

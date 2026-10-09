@@ -42,10 +42,16 @@ export default function SelectOutputs() {
                 'string' === typeof newValue || Array.isArray(newValue) ? newValue
                 : spec.type === 'boolean' ? !settings[id as 'group_by_matching_strategy']
                 : (e.target as HTMLInputElement).value || ''
-              if (spec.type === 'string' && spec.values && Array.isArray(value) && value.length) {
+              if (spec.type === 'string' && 'object' === typeof spec.values && Array.isArray(value) && value.length) {
+                const values = spec.values
                 Object.keys(spec.values).forEach(k => {
-                  if ('object' === typeof spec.values && spec.values[k].required && !value.includes(k))
-                    value.splice(0, 0, k)
+                  if (values[k].required && !value.includes(k)) value.splice(0, 0, k)
+                })
+                value.forEach((k, i) => {
+                  const requires = values[k].requires
+                  if (requires && !value.includes(requires)) {
+                    value.splice(i, 0, requires)
+                  }
                 })
               }
               editJob({
@@ -95,26 +101,36 @@ export default function SelectOutputs() {
         outputs: renderOptionSet(validator.spec.job_spec.outputs, 'outputs'),
       }
     }
-  }, [job, !validator])
+  }, [job, validator])
 
   return (
-    <Box sx={{height: '100%', overflowY: 'auto'}}>
-      {menu && (
-        <Stack spacing={1}>
-          <Card>
-            <CardHeader title="Settings" sx={{pt: 1, pb: 1}} />
-            <CardContent sx={{height: 'calc(100% - 48px)', pt: 1, pb: 1}}>
-              <Stack spacing={1}>{menu.settings}</Stack>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader title="Outputs" sx={{pt: 1, pb: 1}} />
-            <CardContent sx={{height: 'calc(100% - 48px)', pt: 1, pb: 1}}>
-              <Stack spacing={1}>{menu.outputs}</Stack>
-            </CardContent>
-          </Card>
-        </Stack>
-      )}
+    <Box sx={{height: '100%'}}>
+      <Box sx={{p: 1, height: 45, textAlign: 'right'}}>
+        <Typography>
+          Noise Cost:{' '}
+          <Typography color="info" component="span">
+            {validator.jobCost(job)}
+          </Typography>
+        </Typography>
+      </Box>
+      <Box sx={{height: 'calc(100% - 37px)', overflowY: 'auto'}}>
+        {menu && (
+          <Stack spacing={1}>
+            <Card>
+              <CardHeader title="Settings" sx={{pt: 1, pb: 1}} />
+              <CardContent sx={{height: 'calc(100% - 48px)', pt: 1, pb: 1}}>
+                <Stack spacing={1}>{menu.settings}</Stack>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader title="Outputs" sx={{pt: 1, pb: 1}} />
+              <CardContent sx={{height: 'calc(100% - 48px)', pt: 1, pb: 1}}>
+                <Stack spacing={1}>{menu.outputs}</Stack>
+              </CardContent>
+            </Card>
+          </Stack>
+        )}
+      </Box>
     </Box>
   )
 }

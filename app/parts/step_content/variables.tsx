@@ -30,7 +30,7 @@ export default function DefineVariables() {
         {type: 'undefined', description: 'undefined'},
         ...Object.values(validator.spec.job_spec.variables),
       ].map(({type, description}) => (
-        <MenuItem value={type} disabled={type === 'undefined'}>
+        <MenuItem key={type} value={type} disabled={type === 'undefined'}>
           <Tooltip placement="left" title={description}>
             <Typography sx={{width: '100%'}}>{type}</Typography>
           </Tooltip>
@@ -70,7 +70,7 @@ export default function DefineVariables() {
       })
       return {typeOptions, fieldUIs}
     }
-  }, [!validator])
+  }, [editJob, validator])
   const variable_listing = useMemo(() => {
     if (data && specUI) {
       job.variables = validator.fillVariables(job.variables, data.data)
@@ -114,7 +114,7 @@ export default function DefineVariables() {
         )
       })
     }
-  }, [specUI, job.variables])
+  }, [specUI, job.variables, data.data])
   return (
     <Box sx={{height: '100%'}}>
       <Box sx={{p: 1, height: 45}}>

@@ -10,7 +10,14 @@ export type CategoricalRule = {
   n_max?: number
 }
 export type CategoricalValues = {
-  [key: string]: {label: string; description?: string; required?: boolean; rules?: CategoricalRule[]}
+  [key: string]: {
+    label: string
+    description?: string
+    required?: boolean
+    requires?: string
+    cost?: number
+    rules?: CategoricalRule[]
+  }
 }
 
 export type DefaultConditions<T> = {starts_with?: string; ends_with?: string; includes?: string; value: T}[]
@@ -33,6 +40,7 @@ export type BaseEntry = {
   label?: string
   description?: string
   required?: boolean
+  cost?: number
   disable?: boolean
   advanced?: boolean
   suboptions?: {[key: string]: BaseEntry}
@@ -170,7 +178,7 @@ export type JobSpecAction =
       type: 'replace'
       spec: JobSpec
     }
-  | {type: 'set'; key: string; value: any}
+  | {type: 'set'; key: string; value: string | number | boolean | string[]}
   | {type: 'variable_edit'; id: string; field: string; value: string | number | boolean}
   | {type: 'settings_edit'; id: string; value?: string | number | boolean | string[]}
   | {type: 'outputs_edit'; id: string; value?: string | number | boolean | string[]}

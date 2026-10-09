@@ -16,7 +16,7 @@ function TabPanel({children, step, currentStep}: {children: ReactElement; step: 
   )
 }
 
-const noData = (
+const noDataMessage = (
   <Box>
     <Typography color="error">No data loaded.</Typography>
   </Box>
@@ -27,12 +27,13 @@ export default function Steps() {
   const job = useContext(JobContext)
   const {palette} = useTheme()
   const [currentStep, setCurrentStep] = useState('define')
+  const noData = !data
   const tabs = useMemo(() => {
     const stepFailed = {
-      define: !data || !job.validation || !!job.validation.errors.variables.length,
-      values: !data || !job.validation || !!job.validation.errors.values.length,
-      rows: !data || !job.validation || !!job.validation.errors.rows.length,
-      groups: !data || !job.validation || !!job.validation.errors.groups.length,
+      define: noData || !job.validation || !!job.validation.errors.variables.length,
+      values: noData || !job.validation || !!job.validation.errors.values.length,
+      rows: noData || !job.validation || !!job.validation.errors.rows.length,
+      groups: noData || !job.validation || !!job.validation.errors.groups.length,
     }
     const tabProps = (label: string, value: keyof typeof stepFailed | 'outputs') => {
       return {
@@ -73,7 +74,7 @@ export default function Steps() {
         <Tab iconPosition="start" {...tabProps('5. Select Outputs', 'outputs')} />
       </Tabs>
     )
-  }, [currentStep, job.validation])
+  }, [currentStep, job.validation, noData, palette.success.main, palette.error.main])
   return (
     <Stack component="main" direction="row" sx={{height: '100%'}}>
       <Box
@@ -95,22 +96,22 @@ export default function Steps() {
         <TabPanel step="define" currentStep={currentStep}>
           {data ?
             <DefineVariables />
-          : noData}
+          : noDataMessage}
         </TabPanel>
         <TabPanel step="values" currentStep={currentStep}>
           {data ?
             <CheckValues />
-          : noData}
+          : noDataMessage}
         </TabPanel>
         <TabPanel step="rows" currentStep={currentStep}>
           {data ?
             <CheckRows />
-          : noData}
+          : noDataMessage}
         </TabPanel>
         <TabPanel step="groups" currentStep={currentStep}>
           {data ?
             <CheckGroups />
-          : noData}
+          : noDataMessage}
         </TabPanel>
         <TabPanel step="outputs" currentStep={currentStep}>
           <SelectOutputs />
